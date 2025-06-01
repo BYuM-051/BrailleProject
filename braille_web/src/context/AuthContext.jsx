@@ -11,10 +11,10 @@ import {
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 
-
+//TODO :: NOTE :: signup 안만들었네
 const AuthContext = createContext(null);
 
-function AuthProvider() 
+function AuthProvider({ children }) 
 {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState(null);
@@ -24,9 +24,23 @@ function AuthProvider()
 
     useEffect(() =>
     {
-        const unSubscribe = onAuthStateChanged(auth, (user) => 
+        const unSubscribe = onAuthStateChanged(auth, async (user) => 
         {
-            setUser(user);
+            if(user)
+            {
+                const userRef = doc(db, "users", user.uid);
+                const userSnapshot = await getDoc(userRef);
+
+                setUser(user);
+                setRole(userSnapshot.exists() ? userSnapshot.data().role : "user");
+            }
+            else
+            {
+                setUser(null);
+                setRole(null);
+            }
+
+            setAuthReady(true);
         }
     );
         return unSubscribe;
@@ -34,27 +48,11 @@ function AuthProvider()
 
     
 
-    const login = async (email, password) => 
-    {
-        const credential = await signInWithEmailAndPassword(auth, email, password);
+    const login = async (email, password) => signInWithEmailAndPassword(auth, email, password);
+    const signup = async (email, password) => createUserWithEmailAndPassword(auth, email, password);
+    const logout = async () => signOut(auth);
 
-        //get UserInfo From DB
-        setUser(credential.user);
-        setAuthReady(true);
-    };
-
-    const signup = async (email, password) =>
-    {
-        return createUserWithEmailAndPassword(auth, email, password);
-    };
-
-    const logout = async () => 
-    {
-        return signOut(auth);
-    };
-
-    return 
-    (
+    return ( // JSX는 Allman을 허용하지 않는다.
         <AuthContext.Provider value = {{ user, role, authReady, login, signup, logout}}>
             {children}
         </AuthContext.Provider>
