@@ -4,7 +4,7 @@ export default function MainPage()
 {
     return(
         <Link to = "/signup">
-        <Button >signup</Button>
+        <button >signup</button>
         </Link>
     )
 }
