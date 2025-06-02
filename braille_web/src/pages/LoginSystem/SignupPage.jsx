@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@context/AuthContext";
-import {db, ref, set} from "@firebase/firebase"
 
 import "@css/index.css";
 
@@ -25,7 +24,7 @@ export default function Signup()
             const user = userCredential.user;
 
             const role = keyword.trim().toLowerCase() === "admin" ? "admin" : "user";
-            set(ref(db, "users/" + user.uid), { role });
+            //set(ref(db, "users/" + user.uid), { role });
 
             navigate("/login");
         }

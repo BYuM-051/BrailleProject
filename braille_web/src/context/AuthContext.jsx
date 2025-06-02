@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { auth, db } from "../firebase/firebase";
+import { auth, db } from "@fireservice/firebase";
 import {
     onAuthStateChanged,
     signInWithEmailAndPassword,
@@ -52,7 +52,7 @@ function AuthProvider({ children })
     const signup = async (email, password) => createUserWithEmailAndPassword(auth, email, password);
     const logout = async () => signOut(auth);
 
-    return ( // JSX는 Allman을 허용하지 않는다.
+    return (
         <AuthContext.Provider value = {{ user, role, authReady, login, signup, logout}}>
             {children}
         </AuthContext.Provider>

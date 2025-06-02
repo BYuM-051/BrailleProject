@@ -1,4 +1,4 @@
-export default function LearningPage()
+export default function MyPage()
 {
     return(
         <>

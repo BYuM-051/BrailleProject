@@ -12,7 +12,7 @@ export default defineConfig({
     alias: {
       '@pages' : path.resolve(__dirname, "./src/pages"),
       '@css' : path.resolve(__dirname, "./src"),
-      '@firebase' : path.resolve(__dirname, "./src/firebase"),
+      '@fireservice' : path.resolve(__dirname, "./src/firebase"),
       '@context' : path.resolve(__dirname, "./src/context"),
     }
   }
