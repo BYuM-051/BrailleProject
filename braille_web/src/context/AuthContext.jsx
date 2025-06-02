@@ -28,8 +28,7 @@ function AuthProvider({ children })
         {
             if(user)
             {
-                const userRef = doc(db, "users", user.uid);
-                const userSnapshot = await getDoc(userRef);
+                const userSnapshot = await getDoc(doc(db, "users", user.uid));
 
                 setUser(user);
                 setRole(userSnapshot.exists() ? userSnapshot.data().role : "user");
