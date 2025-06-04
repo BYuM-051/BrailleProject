@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@context/AuthContext";
+import { userAccount } from "@context/AccountContext";
 import { db } from "@fireservice/firebase";
 import { doc, setDoc } from "firebase/firestore"
 
@@ -12,7 +12,7 @@ export default function Signup()
     const [password, setPassword] = useState("");
     const [keyword, setKeyword] = useState("");
     const [error, setError] = useState("");
-    const { signup } = useAuth();
+    const { signup } = userAccount();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) =>

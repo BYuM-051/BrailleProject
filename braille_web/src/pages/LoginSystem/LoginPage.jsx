@@ -1,4 +1,4 @@
-import { useAuth } from "@context/AuthContext";
+import { userAccount } from "@context/AccountContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -8,7 +8,7 @@ export default function LoginPage ()
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
-    const { login } = useAuth();
+    const { login } = userAccount();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) =>
