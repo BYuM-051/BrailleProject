@@ -36,8 +36,28 @@ function SerialProvider({ children })
         }
     }
 
+    const write = async(data) =>
+    {
+        if(!port || !port.writable)
+            {return;}
+
+        try
+        {
+            const writer = port.writable.getWriter();
+            await writer.write(new TextEncoder().encode(data));
+            writer.releaseLock();
+        }
+        catch(err)
+            {console.error("Failed to write to serial : ", err);}
+    }
+
+    const startReading = async (newPort, onData) =>
+    {
+        
+    }
+
     return (
-        <SerialContext.Provider value = {{ port, isConnected, connect, disconnect}}>
+        <SerialContext.Provider value = {{ port, isConnected, connect, disconnect , write}}>
             {children}
         </SerialContext.Provider>
     );

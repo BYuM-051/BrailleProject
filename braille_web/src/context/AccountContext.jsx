@@ -33,7 +33,10 @@ function AccountProvider({ children })
                 const normalizedUser = 
                 {
                     ...userBeans,
-                    ...firestoreData
+                    ...firestoreData,
+                    uid : user.uid,
+                    email : user.email
+
                 };
 
                 setUser(normalizedUser);

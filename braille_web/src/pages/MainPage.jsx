@@ -8,9 +8,13 @@ export default function MainPage()
         <>
         {
             !user && 
-            (<Link to = "/signup">
-            <button >signup</button>
-            </Link>)
+            (
+                <>
+                <Link to = "/signup"><button>signup</button></Link>
+                <Link to = "/login"><button>login</button></Link>
+                </>
+            )
+            
         }
         {
             user &&
