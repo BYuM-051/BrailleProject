@@ -19,7 +19,7 @@ function AccountProvider({ children })
     const [role, setRole] = useState("guest");
     const [authReady, setAuthReady] = useState(false);
 
-    useEffect(()=> { setPersistence(auth, browserSessionPersistence).catch(console.error); }, []); // Session대용 Token을 BrowserSession으로 설정하면 Session마냥 종료시 만료가능
+    useEffect(() => { setPersistence(auth, browserSessionPersistence).catch(console.error); }, []); // Session대용 Token을 BrowserSession으로 설정하면 Session마냥 종료시 만료가능
 
     useEffect(() =>
     {

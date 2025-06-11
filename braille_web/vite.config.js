@@ -15,6 +15,7 @@ export default defineConfig({
       '@fireservice' : path.resolve(__dirname, "./src/firebase"),
       '@context' : path.resolve(__dirname, "./src/context"),
       '@beans' : path.resolve(__dirname, "./src/beans"),
+      '@layouts' : path.resolve(__dirname, "./src/layouts"),
     }
   }
 })
