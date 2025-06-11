@@ -1,13 +1,16 @@
 import { Outlet } from "react-router-dom";
-import Header from "@componets/Header.jsx"
+import Header from "@components/Header.jsx"
 
 export default function MainLayout()
 {
     return (
         <>
-            <Header>
-                <Outlet />
-            </Header>
+            <header>
+                <Header/>
+            </header>
+            <main>
+                <Outlet/>
+            </main>
         </>
     );
 }
