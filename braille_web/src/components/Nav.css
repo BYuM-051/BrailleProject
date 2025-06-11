@@ -1,0 +1,30 @@
+nav {
+  padding: 1rem 0;
+}
+
+nav ul {
+  display: flex;
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+nav a {
+  text-decoration: none;
+  color: #ccc;
+  font-weight: 500;
+  transition: color 0.2s ease-in-out, border-bottom 0.2s ease-in-out;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+
+nav a:hover {
+  color: #fff;
+  border-bottom: 2px solid #888;
+}
+
+nav a.active {
+  color: #61dafb;
+  border-bottom: 2px solid #61dafb;
+}

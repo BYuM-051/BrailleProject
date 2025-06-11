@@ -16,6 +16,7 @@ export default defineConfig({
       '@context' : path.resolve(__dirname, "./src/context"),
       '@beans' : path.resolve(__dirname, "./src/beans"),
       '@layouts' : path.resolve(__dirname, "./src/layouts"),
+      '@components' : path.resolve(__dirname, "./src/components"),
     }
   }
 })

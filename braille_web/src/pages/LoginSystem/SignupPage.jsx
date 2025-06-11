@@ -4,8 +4,6 @@ import { userAccount } from "@context/AccountContext";
 import { db } from "@fireservice/firebase";
 import { doc, setDoc } from "firebase/firestore"
 
-import "@css/index.css";
-
 export default function Signup()
 {
     const [email, setEmail] = useState("");

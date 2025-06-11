@@ -11,6 +11,7 @@ import MyPage from "@pages/My/MyPage";
 import MyLearningStagePage from "@pages/My/MyLearningStagePage"
 import GameHistoryPage from "@pages/My/GameHistoryPage";
 import GameRankingPage from "@pages/My/GameRankingPage";
+import MainLayout from "@layouts/MainLayout"
 
 export default function Router() 
 {
@@ -23,7 +24,7 @@ export default function Router()
                     <Route path="/signup" element={<SignupPage />} />
 
                     {/* Home / About */}
-                    <Route path="/" element={<MainPage />} />
+                    <Route index element={<MainPage />} />
                     <Route path="/about" element={<AboutPage />} />
 
                     {/* Main Features */}
