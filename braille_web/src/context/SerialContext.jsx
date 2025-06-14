@@ -4,25 +4,54 @@ const SerialContext = createContext(null);
 
 function SerialProvider({ children })
 {
-    const [port, setPort] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
+    const portRef = useRef(null);
     const readerRef = useRef(null);
     const isReadingRef = useRef(false);
+    const pipeClosedRef = useRef(null);
 
-    const connect = async () =>
+    const connect = async (onData) =>
     {
         try
         {
-            const newPort = await navigator.serial.requestPort();
-            await newPort.open({ baudRate: 9600 });
-            setPort(newPort);
+            const port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 9600 });
+            portRef.current = port;
             setIsConnected(true);
-            return true;
+
+            const textDecoder = new TextDecoderStream();
+            pipeClosedRef.current = port.readable.pipeTo(textDecoder.writable);
+            const reader = textDecoder.readable.getReader();
+            readerRef.current = reader;
+            isReadingRef.current = true;
+
+            try
+            {
+                while (true)
+                {
+                    const { value, done } = await reader.read();
+
+                    if (done)
+                    {
+                        break;
+                    }
+
+                    if (value)
+                    {
+                        onData(value);
+                    }
+                }
+            }
+            finally
+            {
+                reader.releaseLock();
+                isReadingRef.current = false;
+            }
         }
         catch (err)
         {
-            console.error("Failed to serial connect: ", err);
-            return false;
+            console.error("Serial connect/read failed:", err);
+            setIsConnected(false);
         }
     };
 
@@ -30,29 +59,32 @@ function SerialProvider({ children })
     {
         try
         {
-            if (readerRef.current)
+            if (isReadingRef.current && readerRef.current)
             {
                 await readerRef.current.cancel();
-                readerRef.current.releaseLock();
+                await pipeClosedRef.current?.catch(() => {});
                 readerRef.current = null;
+                isReadingRef.current = false;
             }
 
-            if (port)
+            if (portRef.current)
             {
-                await port.close();
-                setPort(null);
+                await portRef.current.close();
+                portRef.current = null;
             }
 
             setIsConnected(false);
         }
         catch (err)
         {
-            console.error("Failed to serial disconnect: ", err);
+            console.error("Serial disconnect failed:", err);
         }
     };
 
     const write = async (data) =>
     {
+        const port = portRef.current;
+
         if (!port || !port.writable)
         {
             console.warn("No writable serial port");
@@ -67,59 +99,12 @@ function SerialProvider({ children })
         }
         catch (err)
         {
-            console.error("Failed to write to serial: ", err);
-        }
-    };
-
-    const startReading = async (onData) =>
-    {
-        if (isReadingRef.current)
-        {
-            console.warn("Already reading.");
-            return;
-        }
-
-        if (!port || !port.readable)
-        {
-            console.warn("No readable serial port");
-            return;
-        }
-
-        try
-        {
-            const textDecoder = new TextDecoderStream();
-            await port.readable.pipeTo(textDecoder.writable);
-            readerRef.current = textDecoder.readable.getReader();
-            isReadingRef.current = true;
-
-            while (true)
-            {
-                const { value, done } = await readerRef.current.read();
-                console.log(value);
-                if (done)
-                {
-                    break;
-                }
-                if (value)
-                {
-                    onData(value);
-                }
-            }
-
-            readerRef.current.releaseLock();
-            isReadingRef.current = false;
-        }
-        catch (err)
-        {
-            console.error("Failed to read from serial: ", err);
-            isReadingRef.current = false;
+            console.error("Serial write failed:", err);
         }
     };
 
     return (
-        <SerialContext.Provider
-            value={{ port, isConnected, connect, disconnect, write, startReading }}
-        >
+        <SerialContext.Provider value={{ isConnected, connect, disconnect, write }}>
             {children}
         </SerialContext.Provider>
     );
@@ -132,10 +117,6 @@ function useSerial()
     if (context === null)
     {
         throw new Error("[WARNING] serialContext is null");
-    }
-    else if (context === undefined)
-    {
-        throw new Error("[FATAL] serialContext is undefined");
     }
 
     return context;
