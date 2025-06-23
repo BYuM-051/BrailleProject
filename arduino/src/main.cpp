@@ -1,11 +1,28 @@
 #include <Arduino.h>
+#include "freertos/FreeRTOS.h"
 
-// put function declarations here:
+void serialListener();
+void soundMixer();
 
-void setup() {
-  // put your setup code here, to run once:
+uint32_t taskCount[2]; 
+
+TaskHandle_t SerialListenerTask;
+TaskHandle_t SoundMixingTask;
+
+void setup()
+{
+    Serial.begin(115200);
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+
+
+void loop()
+{
+    
 }
+
+void serialListner()
+{
+
+}
+
