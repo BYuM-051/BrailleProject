@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 const SerialContext = createContext(null);
 
@@ -9,6 +9,7 @@ function SerialProvider({ children })
     const readerRef = useRef(null);
     const isReadingRef = useRef(false);
     const pipeClosedRef = useRef(null);
+    const abortControllerRef = useRef(null);
 
     const connect = async (onData) =>
     {
@@ -21,32 +22,31 @@ function SerialProvider({ children })
 
             const textDecoder = new TextDecoderStream();
             pipeClosedRef.current = port.readable.pipeTo(textDecoder.writable);
+
             const reader = textDecoder.readable.getReader();
             readerRef.current = reader;
             isReadingRef.current = true;
 
-            try
+            const abortController = new AbortController();
+            abortControllerRef.current = abortController;
+
+            while (true)
             {
-                while (true)
+                const { value, done } = await reader.read();
+
+                if (abortController.signal.aborted || done)
                 {
-                    const { value, done } = await reader.read();
+                    break;
+                }
 
-                    if (done)
-                    {
-                        break;
-                    }
-
-                    if (value)
-                    {
-                        onData(value);
-                    }
+                if (value)
+                {
+                    onData(value);
                 }
             }
-            finally
-            {
-                reader.releaseLock();
-                isReadingRef.current = false;
-            }
+
+            reader.releaseLock();
+            isReadingRef.current = false;
         }
         catch (err)
         {
@@ -59,6 +59,8 @@ function SerialProvider({ children })
     {
         try
         {
+            abortControllerRef.current?.abort();
+
             if (isReadingRef.current && readerRef.current)
             {
                 await readerRef.current.cancel();
@@ -103,8 +105,26 @@ function SerialProvider({ children })
         }
     };
 
+    useEffect(() =>
+    {
+        return () =>
+        {
+            disconnect();
+        };
+    }, []);
+
+    const contextValue = useMemo(() =>
+    {
+        return {
+            isConnected,
+            connect,
+            disconnect,
+            write
+        };
+    }, [isConnected]);
+
     return (
-        <SerialContext.Provider value={{ isConnected, connect, disconnect, write }}>
+        <SerialContext.Provider value={contextValue}>
             {children}
         </SerialContext.Provider>
     );
@@ -116,7 +136,7 @@ function useSerial()
 
     if (context === null)
     {
-        throw new Error("[WARNING] serialContext is null");
+        throw new Error("[WARNING] useSerial() must be used within <SerialProvider>");
     }
 
     return context;

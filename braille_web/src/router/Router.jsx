@@ -12,13 +12,17 @@ import MyLearningStagePage from "@pages/My/MyLearningStagePage"
 import GameHistoryPage from "@pages/My/GameHistoryPage";
 import GameRankingPage from "@pages/My/GameRankingPage";
 import MainLayout from "@layouts/MainLayout"
+import TopBanner from "@components/TopBanner";
 
 export default function Router() 
 {
+    const appRef = useRef(null);
+    
     return(
         <BrowserRouter>
+            <TopBanner targetRef = {appRef}/>
             <Routes>
-                <Route element={<MainLayout/>}>
+                <Route element={<MainLayout appRef = {appRef} />}>
                     {/* Auth */}
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/signup" element={<SignupPage />} />
