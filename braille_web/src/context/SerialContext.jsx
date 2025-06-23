@@ -119,7 +119,8 @@ function SerialProvider({ children })
             isConnected,
             connect,
             disconnect,
-            write
+            write,
+            isSupported : "serial" in navigator
         };
     }, [isConnected]);
 

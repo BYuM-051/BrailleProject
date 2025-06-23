@@ -4,26 +4,42 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 80px;
+    height: auto;
     background-color: #222;
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
+    padding: 16px 24px;
     z-index: 9999;
     font-size: 15px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    flex-wrap: wrap;
 }
 
-.top-banner-actions
+.top-banner__message
+{
+    display: flex;
+    flex-direction: column;
+    line-height: 1.5;
+    max-width: 70%;
+    gap: 4px;
+}
+
+.top-banner__note
+{
+    font-size: 13px;
+    color: #ccc;
+}
+
+.top-banner__actions
 {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.top-banner-download
+.top-banner__button
 {
     display: flex;
     align-items: center;
@@ -34,16 +50,22 @@
     text-decoration: none;
     font-weight: bold;
     font-size: 14px;
+    transition: box-shadow 0.2s ease;
 }
 
-.top-banner-icon
+.top-banner__button:hover
+{
+    box-shadow: 0 2px 6px rgba(255, 255, 255, 0.3);
+}
+
+.top-banner__icon
 {
     width: 20px;
     height: 20px;
     margin-right: 8px;
 }
 
-.top-banner-close
+.top-banner__close
 {
     background: none;
     border: none;
@@ -51,4 +73,11 @@
     font-size: 24px;
     cursor: pointer;
     line-height: 1;
+    padding: 0 4px;
+    transition: color 0.2s ease;
+}
+
+.top-banner__close:hover
+{
+    color: #f77;
 }
