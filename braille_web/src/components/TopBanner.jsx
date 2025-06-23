@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import "./TopBanner.css"
 
 export default function TopBanner({ targetRef })
 {
@@ -10,47 +11,40 @@ export default function TopBanner({ targetRef })
     }, []);
     useEffect(()=> {
         targetRef.current.style.transition = "transform 0.3s ease";
-        targetRef.current.style.trasnform = visible ? "translateY(80px)" : "translateY(0px)";
+        targetRef.current.style.transform = visible ? "translateY(80px)" : "translateY(0px)";
     }, [visible, targetRef]);
 
     return (
         visible && (
-            <div
-            style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "60px",
-            backgroundColor: "#222",
-            color: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 16px",
-            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
-            zIndex: 9999,
-            transition: "top 0.3s ease",
-            }}
-            >
-                <span style={{ fontSize: "14px" }}>
-                ⚠️ 이 페이지는 Chrome 브라우저에서 최적화되어 있습니다.
+            <div className="top-banner">
+                <span>
+                    ⚠️ 원활한 이용을 위해 <strong>Chrome</strong> 브라우저를 권장합니다.
                 </span>
-                <button
-                onClick={() => setVisible(false)}
-                style={{
-                background: "transparent",
-                border: "none",
-                color: "#fff",
-                fontSize: "20px",
-                cursor: "pointer",
-                lineHeight: "1",
-                }}
-                aria-label="Close banner"
-                >
-                ×
-                </button>
+
+                <div className="top-banner-actions">
+                    <a
+                        href="https://www.google.com/chrome/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="top-banner-download"
+                    >
+                        <img
+                            src="https://www.google.com/chrome/static/images/chrome-logo-m100.svg"
+                            alt="Chrome Logo"
+                            className="top-banner-icon"
+                        />
+                        Chrome 다운로드
+                    </a>
+                    <button
+                        className="top-banner-close"
+                        onClick={() => setVisible(false)}
+                        aria-label="Close banner"
+                    >
+                        ×
+                    </button>
+                </div>
             </div>
         )
     );
+
 }

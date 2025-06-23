@@ -1,0 +1,54 @@
+.top-banner
+{
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background-color: #222;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 9999;
+    font-size: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.top-banner-actions
+{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.top-banner-download
+{
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    color: #222;
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.top-banner-icon
+{
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+}
+
+.top-banner-close
+{
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+}
