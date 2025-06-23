@@ -13,11 +13,12 @@ import GameHistoryPage from "@pages/My/GameHistoryPage";
 import GameRankingPage from "@pages/My/GameRankingPage";
 import MainLayout from "@layouts/MainLayout"
 import TopBanner from "@components/TopBanner";
+import { useRef } from "react";
 
 export default function Router() 
 {
     const appRef = useRef(null);
-    
+
     return(
         <BrowserRouter>
             <TopBanner targetRef = {appRef}/>
