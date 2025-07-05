@@ -2,12 +2,6 @@
 
 /*
 PinMaps
-//TODO : important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 6, 17, 18 has broken so i decided deleting these one
-5 6 17 18
-d2 d3 d8 d9
-to
-4 12 13 14
-a3 a5 a6 a7
 
 Arduino |   ESP |Feature    
 D2      |   5   |SW1
@@ -26,6 +20,7 @@ A2      |   3   |I2S_DIN
 
 #define _DEBUG_
 
+#include "../include/soundEngine.h"
 #include "../include/buttonEffect_Alone.h"
 #include "../include/buttonEffect1.h"
 
@@ -52,15 +47,19 @@ bool onButtonEvent(int8_t buttinID);
 
 void setupI2S();
 void serialListener();
-void soundMixer();
+
+void soundEngineThread(void* param);
 void soundPlay(uint8_t soundID);
+void soundEngine_LifeCycleManager(void* param);
 
 void isr_Button(void* pin);
 
 uint32_t taskCount[2]; 
 
-TaskHandle_t SerialListenerTask;
-TaskHandle_t SoundMixingTask;
+//TaskHandle_t SerialListenerTask;
+//TaskHandle_t SoundMixingTask;
+
+SoundEngine* soundEngine;
 
 void setup()
 {
@@ -68,18 +67,16 @@ void setup()
     Serial.begin(115200);
 
     //I2S initialize
-    setupI2S();
-    i2s_set_clk(I2S_NUM_0, 44100, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
 
-    //TODO : modify sound to boot sound
-    //I2S sample sound play
+    //TODO : modify sound to boot sound [current it is sample sound]
     delay(3000);
     size_t bytes_written;
-    i2s_write(I2S_NUM_0, sound, sound_len * sizeof(int16_t), &bytes_written, 0);
+    //i2s_write(I2S_NUM_0, sound, sound_len * sizeof(int16_t), &bytes_written, 0);
 
     Serial.println(bytes_written);
 
-    //TODO : soundMixerThreadDispatch
+    //soundEngineThreadDispatch
+    // NOTE : moved into soundEngine.h
 
     //inputswitch initialize
     gpio_install_isr_service(0);
@@ -129,7 +126,6 @@ void loop()
     //handle ISR
     if(buttonPressedFlag)
     {
-        
         #ifdef _DEBUG_
         Serial.print("LOOP_");
         Serial.print("pressedButton : ");
@@ -169,7 +165,9 @@ bool onButtonEvent(int8_t buttonPin)
     Serial.println("after debounce code");
     #endif
 
-    //soundPlay(0);
+    soundPlay(0);//TODO : modify argument to buttonify soundID
+    //TODO : WS2812B code below here
+
     return true;
 }
 
@@ -179,48 +177,24 @@ void IRAM_ATTR isr_Button(void* pin)
     pressedSwitchPin = (int)pin;
 }
 
-void setupI2S()
-{
-    const i2s_config_t config = {
-        .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-        .sample_rate = 44100,
-        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
-        .communication_format = I2S_COMM_FORMAT_I2S_MSB,
-        .intr_alloc_flags = 0,
-        .dma_buf_count = 4,
-        .dma_buf_len = 256,
-        .use_apll = false,
-        .tx_desc_auto_clear = true,
-        .fixed_mclk = 0
-    };
-    i2s_driver_install(I2S_NUM_0, &config, 0, NULL);
 
-    i2s_pin_config_t pin_config = {
-        .bck_io_num = I2S_BCLK_PIN,
-        .ws_io_num = I2S_LRC_PIN,
-        .data_out_num = I2S_DOUT_PIN,
-        .data_in_num = I2S_PIN_NO_CHANGE
-    };
-    i2s_set_pin(I2S_NUM_0, &pin_config);
-    return;
-}
 
 void serialListner()
 {
 
 }
 
-void soundMixer()
-{
-
-}
-
 void soundPlay(uint8_t soundID)
 {
-    i2s_stop(I2S_NUM_0);
-    i2s_zero_dma_buffer(I2S_NUM_0);
-    i2s_start(I2S_NUM_0);
-    size_t bytesWritten;
-    i2s_write(I2S_NUM_0, buttonEffect1, buttonEffect1_len * sizeof(int16_t), &bytesWritten, portMAX_DELAY);
+
+    //TODO : modify code below here enque sound data
+    
+}
+
+void soundEngine_LifeCycleManager(void* param)
+{
+    
+    //TODO : management sound's itself lifecycle (current Time line pointer)
+    
+    vTaskDelete(NULL); // it means return; [Check RTOS Thread]
 }
