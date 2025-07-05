@@ -96,15 +96,29 @@ class SoundEngine
     private :
         std::list<soundEngine_sound> soundQueue;
 
+        //deprecated due to it has sound rip problem
+        // inline static int16_t mixSamples(int16_t a, int16_t b)
+        // {
+        //     constexpr int32_t SAFE_INT16_MIN = -32768;
+        //     constexpr int32_t SAFE_INT16_MAX = 32767;
+        //     return  a < 0 && b < 0 ?
+        //             a + b + ((int32_t) a * b ) / SAFE_INT16_MIN :
+        //             a > 0 && b > 0 ?
+        //             a + b - ((int32_t) a * b ) / SAFE_INT16_MAX :
+        //             a + b;
+        // }
         inline static int16_t mixSamples(int16_t a, int16_t b)
         {
-            constexpr int32_t SAFE_INT16_MIN = -32768;
-            constexpr int32_t SAFE_INT16_MAX = 32767;
-            return  a < 0 && b < 0 ?
-                    a + b + ((int32_t) a * b ) / SAFE_INT16_MIN :
-                    a > 0 && b > 0 ?
-                    a + b - ((int32_t) a * b ) / SAFE_INT16_MAX :
-                    a + b;
+            float fa = static_cast<float>(a) / 32768.0f;
+            float fb = static_cast<float>(b) / 32768.0f;
+            
+            float mixed = (fa + fb) / 2.0f;  // or just (fa + fb) * 0.5f
+            
+            // optional soft saturation (gain = 1.5 정도까지 실험 가능)
+            float gain = 1.0f;
+            mixed = tanhf(mixed * gain);
+
+            return static_cast<int16_t>(mixed * 32767.0f);
         }
 
         void setupI2S(uint8_t lrcPin, uint8_t bclkPin, uint8_t doutPin)
@@ -113,7 +127,8 @@ class SoundEngine
 
             esp_err_t returnValue;
 
-            const i2s_config_t config = {
+            const i2s_config_t config = 
+            {
                 .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
                 .sample_rate = 44100,
                 .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
@@ -141,7 +156,8 @@ class SoundEngine
             }
             #endif
 
-            i2s_pin_config_t pin_config = {
+            i2s_pin_config_t pin_config = 
+            {
                 .bck_io_num = bclkPin,
                 .ws_io_num = lrcPin,
                 .data_out_num = doutPin,
@@ -214,13 +230,6 @@ class SoundEngine
                         {i = soundQueue.erase(i);} 
                     else 
                         {++i;}
-                }
-
-                //temporary sound stablize code
-                for(size_t i = 0 ; i < SAMPLES_PER_TICK ; i ++)
-                {
-                    size_t soundCount = std::max((size_t)1, soundQueue.size());
-                    mixBuffer[i] /= soundCount;
                 }
 
                 size_t bytesWritten;
