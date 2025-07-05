@@ -2,6 +2,8 @@
 
 #define _SOUND_ENGINE_BYUM_H
 
+//#define _DEBUG_
+
 /*
 READ ME BEFORE MODIFY CONSTANTS BELOW HERE
 ------------------------------------------
@@ -9,7 +11,7 @@ Audio slicing is done per tick (e.g. 44.1kHz * 10ms = 441 samples)
 If soundLength % samplesPerTick != 0, tail samples may be dropped
 ex) 1325 samples = 441 * 3 + 2 → last 2 samples discarded
 */
-constexpr unsigned int SOUND_ENGINE_TICK_TO_MS = 20;
+constexpr unsigned int SOUND_ENGINE_TICK_TO_MS = 10;
 constexpr double SAMPLE_RATE = 44100.0;
 constexpr double TICK_MS = static_cast<double>(SOUND_ENGINE_TICK_TO_MS);
 constexpr size_t SAMPLES_PER_TICK = static_cast<size_t>(SAMPLE_RATE * TICK_MS / 1000.0);
@@ -59,7 +61,7 @@ class SoundEngine
             BaseType_t taskReturnValue = xTaskCreatePinnedToCore(
                 soundEngineThreadWrapper,
                 "soundEngineThread",
-                2048,   //TODO : optimize stack size
+                8196,   //TODO : optimize stack size
                 this,   //static 내부에서도 member를 사용할 수 있게하는 매직.
                 1,
                 NULL,
@@ -118,7 +120,7 @@ class SoundEngine
                 .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
                 .communication_format = I2S_COMM_FORMAT_I2S_MSB,
                 .intr_alloc_flags = 0,
-                .dma_buf_count = 8,
+                .dma_buf_count = 4,
                 .dma_buf_len = 256,
                 .use_apll = false,
                 .tx_desc_auto_clear = true,
@@ -212,6 +214,13 @@ class SoundEngine
                         {i = soundQueue.erase(i);} 
                     else 
                         {++i;}
+                }
+
+                //temporary sound stablize code
+                for(size_t i = 0 ; i < SAMPLES_PER_TICK ; i ++)
+                {
+                    size_t soundCount = std::max((size_t)1, soundQueue.size());
+                    mixBuffer[i] /= soundCount;
                 }
 
                 size_t bytesWritten;

@@ -18,7 +18,8 @@ A1      |   2   |I2S_BLCK
 A2      |   3   |I2S_DIN
 */
 
-#define _DEBUG_
+//#define _DEBUG_
+#define _DEBUG_NOW
 
 #include "../include/soundEngine.h"
 #include "../include/buttonEffect_Alone.h"
@@ -33,7 +34,7 @@ A2      |   3   |I2S_DIN
 const int InputSwitchPin[MAX_INPUT_SWITCHES] = 
 {5, 6, 7, 8, 9, 10, 17, 18};
 
-#define DEBOUNCE_TIME_MS 10
+#define DEBOUNCE_TIME_MS 200
 unsigned long previousPressedTime[MAX_INPUT_SWITCHES];
 
 volatile bool buttonPressedFlag = false;
@@ -57,7 +58,12 @@ SoundEngine* soundEngine;
 void setup()
 {
     //Serial initialize
-    Serial.begin(115200);
+    delay(1000);
+    Serial.begin(115200); // I remember that esp32 doesn need to set baud cuz it has native usb serial
+
+    #ifdef _DEBUG_
+    Serial.println("Serial Begin");
+    #endif
 
     //SoundEngine Initialize
     soundEngine = new SoundEngine(I2S_LRC_PIN, I2S_BCLK_PIN, I2S_DOUT_PIN);
@@ -74,7 +80,7 @@ void setup()
             .mode = GPIO_MODE_INPUT,
             .pull_up_en = GPIO_PULLUP_ENABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_POSEDGE
+            .intr_type = GPIO_INTR_NEGEDGE
         };
         gpio_config(&switchPinConfig);
     }
@@ -130,8 +136,13 @@ bool onButtonEvent(int8_t buttonPin)
     for(int i = 0 ; i < MAX_INPUT_SWITCHES ; i++)
     {
         if(buttonPin == InputSwitchPin[i])
-        buttonID = i;
+        {
+            buttonID = i;
+            break;
+        }
     }
+
+    if(buttonID == -1) {return false;}
 
     #ifdef _DEBUG_
     Serial.println("ButtonEvent");
@@ -146,8 +157,10 @@ bool onButtonEvent(int8_t buttonPin)
     if(pressedTime < (previousPressedTime[buttonID] + DEBOUNCE_TIME_MS)) {return true;}
     previousPressedTime[buttonID] = pressedTime;
     
-    #ifdef _DEBUG_
+    #ifdef _DEBUG_NOW
     Serial.println("after debounce code");
+    Serial.print("buttonID : ");
+    Serial.println(buttonID);
     #endif
 
     soundEngine->enqueSound((soundID_t)0);//TODO : modify argument to buttonify soundID
