@@ -45,13 +45,6 @@ const int I2S_DOUT_PIN = 3;
 
 bool onButtonEvent(int8_t buttinID);
 
-void setupI2S();
-void serialListener();
-
-void soundEngineThread(void* param);
-void soundPlay(uint8_t soundID);
-void soundEngine_LifeCycleManager(void* param);
-
 void isr_Button(void* pin);
 
 uint32_t taskCount[2]; 
@@ -66,17 +59,9 @@ void setup()
     //Serial initialize
     Serial.begin(115200);
 
-    //I2S initialize
-
-    //TODO : modify sound to boot sound [current it is sample sound]
-    delay(3000);
-    size_t bytes_written;
-    //i2s_write(I2S_NUM_0, sound, sound_len * sizeof(int16_t), &bytes_written, 0);
-
-    Serial.println(bytes_written);
-
-    //soundEngineThreadDispatch
-    // NOTE : moved into soundEngine.h
+    //SoundEngine Initialize
+    soundEngine = new SoundEngine(I2S_LRC_PIN, I2S_BCLK_PIN, I2S_DOUT_PIN);
+    soundEngine->enqueSound((soundID_t)0);
 
     //inputswitch initialize
     gpio_install_isr_service(0);
@@ -154,7 +139,7 @@ bool onButtonEvent(int8_t buttonPin)
     Serial.println(buttonID);
     #endif
     //reset Pressed Button
-    buttonPressedFlag = false; // I think I should place this one another place :/
+    buttonPressedFlag = false; // NOTE : I think I should place this one another place :/
 
     //software debounce
     unsigned long pressedTime = millis();
@@ -165,7 +150,8 @@ bool onButtonEvent(int8_t buttonPin)
     Serial.println("after debounce code");
     #endif
 
-    soundPlay(0);//TODO : modify argument to buttonify soundID
+    soundEngine->enqueSound((soundID_t)0);//TODO : modify argument to buttonify soundID
+
     //TODO : WS2812B code below here
 
     return true;
@@ -182,19 +168,4 @@ void IRAM_ATTR isr_Button(void* pin)
 void serialListner()
 {
 
-}
-
-void soundPlay(uint8_t soundID)
-{
-
-    //TODO : modify code below here enque sound data
-    
-}
-
-void soundEngine_LifeCycleManager(void* param)
-{
-    
-    //TODO : management sound's itself lifecycle (current Time line pointer)
-    
-    vTaskDelete(NULL); // it means return; [Check RTOS Thread]
 }

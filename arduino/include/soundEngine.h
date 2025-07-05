@@ -2,7 +2,17 @@
 
 #define _SOUND_ENGINE_BYUM_H
 
-#define SOUND_ENGINE_TICK_TO_MS 10U
+/*
+READ ME BEFORE MODIFY CONSTANTS BELOW HERE
+------------------------------------------
+Audio slicing is done per tick (e.g. 44.1kHz * 10ms = 441 samples)
+If soundLength % samplesPerTick != 0, tail samples may be dropped
+ex) 1325 samples = 441 * 3 + 2 → last 2 samples discarded
+*/
+constexpr unsigned int SOUND_ENGINE_TICK_TO_MS = 20;
+constexpr double SAMPLE_RATE = 44100.0;
+constexpr double TICK_MS = static_cast<double>(SOUND_ENGINE_TICK_TO_MS);
+constexpr size_t SAMPLES_PER_TICK = static_cast<size_t>(SAMPLE_RATE * TICK_MS / 1000.0);
 
 #include <Arduino.h>
 
@@ -32,7 +42,7 @@ typedef enum
 
 typedef struct
 {
-    const soundID_t soundID;
+    const int16_t* soundArray;
     const size_t soundLength;
     size_t currentPlay;
 }soundEngine_sound;
@@ -71,7 +81,14 @@ class SoundEngine
 
         bool enqueSound(soundID_t soundID)
         {
-            // TODO : add soundStructInstance into soundQueue
+            //TODO : modify this code to soundID-enemuration based code
+            soundEngine_sound sound = 
+            {
+                .soundArray = buttonEffect1,
+                .soundLength = buttonEffect1_len,
+                .currentPlay = 0
+            };
+            soundQueue.push_back(sound);
             return false;
         }
     private :
@@ -101,7 +118,7 @@ class SoundEngine
                 .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
                 .communication_format = I2S_COMM_FORMAT_I2S_MSB,
                 .intr_alloc_flags = 0,
-                .dma_buf_count = 4,
+                .dma_buf_count = 8,
                 .dma_buf_len = 256,
                 .use_apll = false,
                 .tx_desc_auto_clear = true,
@@ -167,6 +184,7 @@ class SoundEngine
         void soundEngineThread()
         {
             TickType_t currentCallTime = xTaskGetTickCount();
+            int16_t mixBuffer[SAMPLES_PER_TICK];
             while(true)
             {
                 #ifdef _DEBUG_
@@ -179,11 +197,26 @@ class SoundEngine
                     printCount++;
                 }
                 #endif
-                //TODO : mixing
+                memset(mixBuffer, 0, sizeof(mixBuffer));
 
-                //TODO : delete item if it is done
+                for(auto i = soundQueue.begin() ; i != soundQueue.end() ; ) // TODO : these code crumbled
+                {
+                    size_t remaining = i->soundLength - i->currentPlay;
+                    size_t samplesToMix = std::min(SAMPLES_PER_TICK, remaining);
 
-                //TODO : writei2s
+                    for (size_t j = 0; j < samplesToMix; ++j) 
+                        {mixBuffer[j] = mixSamples(mixBuffer[j], i->soundArray[i->currentPlay + j]);}
+                    i->currentPlay += samplesToMix;
+
+                    if (i->currentPlay >= i->soundLength) 
+                        {i = soundQueue.erase(i);} 
+                    else 
+                        {++i;}
+                }
+
+                size_t bytesWritten;
+                i2s_write(I2S_NUM_0, mixBuffer, sizeof(mixBuffer), &bytesWritten, pdMS_TO_TICKS(SOUND_ENGINE_TICK_TO_MS));
+
                 xTaskDelayUntil(&currentCallTime, pdMS_TO_TICKS(SOUND_ENGINE_TICK_TO_MS)); // wait 10 ticks
             }
         }
