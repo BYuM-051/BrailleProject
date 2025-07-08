@@ -2,7 +2,8 @@
 
 #define _SOUND_ENGINE_BYUM_H
 
-//#define _DEBUG_
+//#define _DEBUG_SOUNDENGINE_
+//#define _DEBUG_SOUNDENGINE_NOW
 
 /*
 READ ME BEFORE MODIFY CONSTANTS BELOW HERE
@@ -11,7 +12,7 @@ Audio slicing is done per tick (e.g. 44.1kHz * 10ms = 441 samples)
 If soundLength % samplesPerTick != 0, tail samples may be dropped
 ex) 1325 samples = 441 * 3 + 2 → last 2 samples discarded
 */
-constexpr unsigned int SOUND_ENGINE_TICK_TO_MS = 10;
+constexpr unsigned int SOUND_ENGINE_TICK_TO_MS = 10U;
 constexpr double SAMPLE_RATE = 44100.0;
 constexpr double TICK_MS = static_cast<double>(SOUND_ENGINE_TICK_TO_MS);
 constexpr size_t SAMPLES_PER_TICK = static_cast<size_t>(SAMPLE_RATE * TICK_MS / 1000.0);
@@ -19,8 +20,6 @@ constexpr size_t SAMPLES_PER_TICK = static_cast<size_t>(SAMPLE_RATE * TICK_MS / 
 #include <Arduino.h>
 
 #include "driver/i2s.h"
-#include "./buttonEffect1.h"
-#include "./buttonEffect_Alone.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -35,19 +34,21 @@ buttonEffect_1  |buttonEffect1.mp3  |
 buttonEffect_2  |buttonEffect2.mp3  |
 
 */
-typedef enum
+struct SoundEngine_Sound
 {
-    sound_boot,
-    sound_buttonEffect_1,
-    sound_buttonEffect_2
-}soundID_t;
+    const int16_t* soundArray;
+    const size_t soundLength;
+    size_t currentPlay = 0;
+    
+    SoundEngine_Sound(const int16_t* array, size_t length)
+        : soundArray(array), soundLength(length), currentPlay(0) {}
+};
 
 typedef struct
 {
     const int16_t* soundArray;
     const size_t soundLength;
-    size_t currentPlay;
-}soundEngine_sound;
+} SoundStruct;
 
 class SoundEngine
 {
@@ -58,17 +59,18 @@ class SoundEngine
             this->setupI2S(lrcPin, bclkPin, doutPin);
 
             //initialize SoundEngineThread
-            BaseType_t taskReturnValue = xTaskCreatePinnedToCore(
+            BaseType_t taskReturnValue = xTaskCreatePinnedToCore
+            (
                 soundEngineThreadWrapper,
                 "soundEngineThread",
                 8196,   //TODO : optimize stack size
                 this,   //static 내부에서도 member를 사용할 수 있게하는 매직.
-                1,
+                3,
                 NULL,
                 0
             );
 
-            #ifdef _DEBUG_
+            #ifdef _DEBUG_SOUNDENGINE_
             if(taskReturnValue == pdPASS)
             {
                 Serial.println("[SoundEngine] xTaskCreated To Pin");
@@ -81,22 +83,21 @@ class SoundEngine
             #endif
         };
 
-        bool enqueSound(soundID_t soundID)
+        bool enqueSound(const SoundStruct* sound)
         {
-            //TODO : modify this code to soundID-enemuration based code
-            soundEngine_sound sound = 
+            SoundEngine_Sound* newSound = new SoundEngine_Sound(sound->soundArray, sound->soundLength);
+         
+            if(newSound)
             {
-                .soundArray = buttonEffect1,
-                .soundLength = buttonEffect1_len,
-                .currentPlay = 0
-            };
-            soundQueue.push_back(sound);
+                soundQueue.push_back(newSound);
+                return true;
+            }
             return false;
         }
     private :
-        std::list<soundEngine_sound> soundQueue;
+        std::list<SoundEngine_Sound*> soundQueue;
 
-        //deprecated due to it has sound rip problem
+        //deprecated due to sound rip problem
         // inline static int16_t mixSamples(int16_t a, int16_t b)
         // {
         //     constexpr int32_t SAFE_INT16_MIN = -32768;
@@ -143,7 +144,7 @@ class SoundEngine
             };
             returnValue = i2s_driver_install(I2S_NUM_0, &config, 0, NULL);
 
-            #ifdef _DEBUG_
+            #ifdef _DEBUG_SOUNDENGINE_
             if(returnValue != ESP_OK)
             {
                 Serial.print("[I2S Driver]");
@@ -164,7 +165,7 @@ class SoundEngine
                 .data_in_num = I2S_PIN_NO_CHANGE
             };
             i2s_set_pin(I2S_NUM_0, &pin_config);
-            #ifdef _DEBUG_
+            #ifdef _DEBUG_SOUNDENGINE_
             if(returnValue != ESP_OK)
             {
                 Serial.print("[I2S PinConfig]");
@@ -177,7 +178,7 @@ class SoundEngine
             }
             #endif
 
-            #ifdef _DEBUG_
+            #ifdef _DEBUG_SOUNDENGINE_
             returnValue = i2s_set_clk(I2S_NUM_0, 44100, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
             if(returnValue != ESP_OK)
             {
@@ -205,7 +206,9 @@ class SoundEngine
             int16_t mixBuffer[SAMPLES_PER_TICK];
             while(true)
             {
-                #ifdef _DEBUG_
+                #ifdef _DEBUG_SOUNDENGINE_
+                uint32_t startTime = micros();
+
                 const int MaxPrintCount = 10;
                 static int printCount = 0;
                 if(printCount < MaxPrintCount)
@@ -215,26 +218,38 @@ class SoundEngine
                     printCount++;
                 }
                 #endif
-                memset(mixBuffer, 0, sizeof(mixBuffer));
 
-                for(auto i = soundQueue.begin() ; i != soundQueue.end() ; ) // TODO : these code crumbled
+                if(!soundQueue.empty())
                 {
-                    size_t remaining = i->soundLength - i->currentPlay;
-                    size_t samplesToMix = std::min(SAMPLES_PER_TICK, remaining);
+                    for(auto i = soundQueue.begin() ; i != soundQueue.end() ; )
+                    {
+                        SoundEngine_Sound* s = *i;
 
-                    for (size_t j = 0; j < samplesToMix; ++j) 
-                        {mixBuffer[j] = mixSamples(mixBuffer[j], i->soundArray[i->currentPlay + j]);}
-                    i->currentPlay += samplesToMix;
+                        size_t remaining = s->soundLength - s->currentPlay;
+                        size_t samplesToMix = std::min(SAMPLES_PER_TICK, remaining);
 
-                    if (i->currentPlay >= i->soundLength) 
-                        {i = soundQueue.erase(i);} 
-                    else 
-                        {++i;}
+                        for(size_t j = 0; j < samplesToMix; ++j) 
+                            {mixBuffer[j] = mixSamples(mixBuffer[j], s->soundArray[s->currentPlay + j]);}
+                        s->currentPlay += samplesToMix;
+
+                        if(s->currentPlay >= s->soundLength) 
+                        {
+                            delete s;
+                            i = soundQueue.erase(i);
+                        } 
+                        else 
+                            {++i;}
+                    }
+
+                    size_t bytesWritten;
+                    i2s_write(I2S_NUM_0, mixBuffer, sizeof(mixBuffer), &bytesWritten, pdMS_TO_TICKS(SOUND_ENGINE_TICK_TO_MS));
+                    memset(mixBuffer, 0, sizeof(mixBuffer));
                 }
-
-                size_t bytesWritten;
-                i2s_write(I2S_NUM_0, mixBuffer, sizeof(mixBuffer), &bytesWritten, pdMS_TO_TICKS(SOUND_ENGINE_TICK_TO_MS));
-
+                #ifdef _DEBUG_SOUNDENGINE_
+                uint32_t finishTime = micros();
+                Serial.print("SoundEngine Computing Time : ");
+                Serial.println(finishTime - startTime);
+                #endif
                 xTaskDelayUntil(&currentCallTime, pdMS_TO_TICKS(SOUND_ENGINE_TICK_TO_MS)); // wait 10 ticks
             }
         }
@@ -243,3 +258,4 @@ class SoundEngine
 };
 
 #endif
+
