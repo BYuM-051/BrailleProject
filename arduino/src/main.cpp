@@ -19,7 +19,7 @@ A2      |   3   |I2S_DIN
 */
 
 //#define _DEBUG_
-//#define _DEBUG_NOW
+#define _DEBUG_NOW
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -54,10 +54,37 @@ constexpr int I2S_DOUT_PIN = 3;
 /*
 Keyboard (InputSwitch) Section
 -----------------------------------------------------------------------
+This section initializes the 8-button input system for braille input.
+
+The button configuration provides braille input functionality:
+- Button_1 to Button_6: 6-dot braille system inputs
+- Button_DEL: Delete/Backspace function
+- Button_ENT: Enter/Submit function
+
+Pin mapping and interrupt configuration:
+- GPIO 5,6,7,8,9,10,17,18 for button inputs
+- Internal pull-up resistors enabled
+- Negative edge triggered interrupts
+- Software debouncing with 200ms delay
+
+Note: Pins 5,6,17,18 are currently disabled due to hardware issues.
 */
 #define MAX_INPUT_SWITCHES 8
 const int InputSwitchPin[MAX_INPUT_SWITCHES] = 
 {5, 6, 7, 8, 9, 10, 17, 18};
+
+enum ButtonID
+{
+    None = -1,
+    Button_1 = 0,
+    Button_2 = 1,
+    Button_3 = 2,
+    Button_4 = 3,
+    Button_5 = 4,
+    Button_6 = 5,
+    Button_DEL = 6,
+    Button_ENT = 7
+};
 
 #define DEBOUNCE_TIME_MS 200
 unsigned long previousPressedTime[MAX_INPUT_SWITCHES];
@@ -71,20 +98,7 @@ ButtonID getButtonID(int8_t buttonPin);
 
 #define _BUTTON_BROKEN_
 
-bool switchActivated[MAX_INPUT_SWITCHES];
-
-enum ButtonID
-{
-    None = 0,
-    Button_1,
-    Button_2,
-    Button_3,
-    Button_4,
-    Button_5,
-    Button_6,
-    Button_DEL,
-    Button_ENT
-};
+byte buttonStates = 0;
 
 //Serial Protocol Control Bytes Below Here
 constexpr byte ProtocolCMDNewLine = 0b01000000;
@@ -92,7 +106,27 @@ constexpr byte ProtocolCMDErase = 0b10000000;
 /*
 NeoPixel (WS2812B) Section
 -----------------------------------------------------------------------
-//TODO : add more description
+This section initializes the WS2812B LED strip for visual feedback.
+
+The LED configuration provides status indication for button presses:
+- 8 LEDs corresponding to each button input
+- GPIO 21 (D10) for data line connection
+- WS2812B protocol with GRB color format
+- ESP32 RMT driver for precise timing
+
+Hardware and library configuration:
+- NeoPixelBus library for efficient LED control
+- RMT peripheral for accurate timing requirements
+- Boot sequence animation on startup
+- Real-time status updates for button states
+
+Color Description:
+- Green (0, 254, 0): Button is pressed/active
+- Black (0, 0, 0): Button is released/inactive  
+- Red (254, 0, 0): Error state or invalid input
+- Blue (0, 0, 254): System ready or waiting state
+
+Color constants are defined as constexpr for compile-time optimization.
 */
 #include "NeoPixelBus.h"
 
@@ -103,6 +137,14 @@ NeoPixelBus<NeoGrbFeature, NeoEsp32Rmt0Ws2812xMethod> argb(LedCount, ARGB_DOUT_P
 
 void argbBootSequence(void* param);
 void argbReset();
+void serialListnerWrapper(void* param);
+
+constexpr RgbColor Green(0, 254, 0);
+constexpr RgbColor Black(0, 0, 0);
+constexpr RgbColor Red(254, 0, 0);
+constexpr RgbColor Blue(0, 0, 254);
+constexpr RgbColor White(255, 255, 255);
+
 //=============================================================================================================
 
 void setup()
@@ -170,7 +212,18 @@ void setup()
     gpio_isr_handler_remove((gpio_num_t)17);
     gpio_isr_handler_remove((gpio_num_t)18);
     #endif
-    //TODO : Serial Listener Task Dispatch
+    
+    // Serial Listener Task Dispatch
+    xTaskCreatePinnedToCore
+    (
+        serialListnerWrapper,
+        "serialListnerWrapper",
+        2048,
+        NULL,
+        1,
+        NULL,
+        1
+    );
 
 }
 
@@ -189,7 +242,7 @@ void loop()
         pressedSwitchPin = -1;
     }
     
-    
+
 }
 
 bool onButtonEvent(int8_t buttonPin)
@@ -206,7 +259,7 @@ bool onButtonEvent(int8_t buttonPin)
 
     //software debounce
     unsigned long pressedTime = millis();
-    int buttonIndex = static_cast<int>(buttonID) - 1;
+    int buttonIndex = static_cast<int>(buttonID);
     if(pressedTime < (previousPressedTime[buttonIndex] + DEBOUNCE_TIME_MS)) {return true;}
     previousPressedTime[buttonIndex] = pressedTime;
     
@@ -219,36 +272,52 @@ bool onButtonEvent(int8_t buttonPin)
     switch(buttonID)
     {
         case None:
+            #ifdef _DEBUG_
+            Serial.println("None button pressed");
+            #endif
             return false;
         case Button_1:
-            soundEngine->enqueSound(&ButtonEffect_1);//TODO : modify argument to buttonify soundID
-            switchActivated[buttonID] = !switchActivated[buttonID];
-            switchActivated[buttonID] ? 
-            argb.SetPixelColor(buttonID, RgbColor(0, 254, 0)) :
-            argb.SetPixelColor(buttonID, RgbColor(0, 0, 0));
-            argb.Show();
-            return true;
         case Button_2:
-            return true;
         case Button_3:
-            break;
         case Button_4:
-            break;
         case Button_5:
-            break;
         case Button_6:
-            break;
+            buttonStates ^= (1 << static_cast<int>(buttonID));  // 비트 토글
+            (buttonStates & (1 << static_cast<int>(buttonID))) ? 
+                argb.SetPixelColor(static_cast<int>(buttonID), Green) :
+                argb.SetPixelColor(static_cast<int>(buttonID), Black);
+            argb.Show();
+            soundEngine->enqueSound(&ButtonEffect_1); // TODO : modify argument to ButtonSound
+            return true;
         case Button_DEL:
-            break;
+            if(buttonStates == 0)
+            {
+                Serial.print(ProtocolCMDErase);
+            }
+            else
+            {
+                buttonStates = 0;
+                argbReset();
+            }
+            soundEngine->enqueSound(&ButtonEffect_1); // TODO : modify argument to DeleteSound
+            return true;
         case Button_ENT:
-            break;
+            if(buttonStates == 0)
+            {
+                Serial.print(ProtocolCMDNewLine);
+            }
+            else
+            {
+                Serial.print(buttonStates);
+                buttonStates = 0;
+                argbReset();
+            }
+            soundEngine->enqueSound(&ButtonEffect_1); // TODO : modify argument to EnterSound
+            return true;
         default:
             return false;
     }
     
-
-    //TODO : WS2812B code below here
-
     return false;
 }
 
@@ -269,19 +338,19 @@ void argbBootSequence(void* param)
     argbReset();
     for(int i = 0 ; i < LedCount ; i++)
     {
-        argb.SetPixelColor(i, RgbColor(254, 0, 0));
+        argb.SetPixelColor(i, Red);
     }
     argb.Show();
     vTaskDelay(200 / portTICK_PERIOD_MS);
     for(int i = 0 ; i < LedCount ; i++)
     {
-        argb.SetPixelColor(i, RgbColor(0, 254, 0));
+        argb.SetPixelColor(i, Green);
     }
     argb.Show();
     vTaskDelay(200 / portTICK_PERIOD_MS);
     for(int i = 0 ; i < LedCount ; i++)
     {
-        argb.SetPixelColor(i, RgbColor(0, 0, 254));
+        argb.SetPixelColor(i, Blue);
     }
     argb.Show();
     // TODO : NextVersion, I think add more boot sequence animation
@@ -293,8 +362,7 @@ void argbBootSequence(void* param)
 
 void argbReset()
 {
-    const RgbColor turnOFF(0, 0, 0);
-    argb.ClearTo(turnOFF);
+    argb.ClearTo(Black);
     argb.Show();
 }
 
@@ -306,13 +374,98 @@ ButtonID getButtonID(int8_t buttonPin)
     {
         if(buttonPin == InputSwitchPin[i])
         {
-            return static_cast<ButtonID>(i + 1);
+            return static_cast<ButtonID>(i);
         }
     }
     return None;
 }
 
+
 void serialListner()
 {
+    if (Serial.available()) 
+    {
+        String input = Serial.readStringUntil('\n');
+        input.trim();
+        
+        #ifdef _DEBUG_
+        Serial.print("Received: ");
+        Serial.println(input);
+        #endif
+        
+        #ifdef _DEBUG_NOW
+        if (input.startsWith("BUTTON_TEST")) 
+        {
+            // Test all button states and report their current status
+            Serial.println("Testing all buttons...");
+            for (int i = 0; i < MAX_INPUT_SWITCHES; i++) 
+            {
+                Serial.print("Button ");
+                Serial.print(i);
+                Serial.print(" (Pin ");
+                Serial.print(InputSwitchPin[i]);
+                Serial.print("): ");
+                Serial.println(gpio_get_level((gpio_num_t)InputSwitchPin[i]) == LOW ? "PRESSED" : "RELEASED");
+            }
+        }
+        else if (input.startsWith("SOUND_TEST")) 
+        {
+            // Test sound engine functionality
+            Serial.println("Testing sound engine...");
+            soundEngine->enqueSound(&ButtonEffect_Alone);
+        }
+        else if (input.startsWith("LED_TEST")) 
+        {
+            // Test LED sequence with white color
+            Serial.println("Testing LED sequence...");
+            argbReset();
+            for (int i = 0; i < LedCount; i++) 
+            {
+                argb.SetPixelColor(i, White);
+            }
+            argb.Show();
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            argbReset();
+        }
+        else if (input.startsWith("STATUS")) 
+        {
+            Serial.println("=== SYSTEM STATUS ===");
+            Serial.print("Button pressed flag: ");
+            Serial.println(buttonPressedFlag);
+            Serial.print("Pressed switch pin: ");
+            Serial.println(pressedSwitchPin);
+            Serial.print("Button states: 0b");
+            Serial.println(buttonStates, BIN);
+            Serial.println("===================");
+        }
+        else if (input.startsWith("RESET")) 
+        {
+            // Reset all system states to initial values
+            Serial.println("Resetting system...");
+            buttonStates = 0;
+            argbReset();
+            buttonPressedFlag = false;
+            pressedSwitchPin = -1;
+        }
+        else if (input.startsWith("HELP"))
+        {
+            // Display available commands if unknown command received
+            Serial.println("Available commands:");
+            Serial.println("  BUTTON_TEST - Test all button states");
+            Serial.println("  SOUND_TEST - Test sound engine");
+            Serial.println("  LED_TEST - Test LED sequence");
+            Serial.println("  STATUS - Show system status");
+            Serial.println("  RESET - Reset system");
+        }
+        #endif
+        
+    }
+}
 
+void serialListnerWrapper(void* param)
+{
+    while(true) {
+        serialListner();
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
 }
