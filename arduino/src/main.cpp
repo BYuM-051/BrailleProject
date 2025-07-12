@@ -70,6 +70,20 @@ void isr_Button(void* pin);
 
 #define _BUTTON_BROKEN_
 
+bool switchActivated[MAX_INPUT_SWITCHES];
+
+enum ButtonID
+{
+    None = 0,
+    Button_1,
+    Button_2,
+    Button_3,
+    Button_4,
+    Button_5,
+    Button_6,
+    Button_DEL,
+    Button_ENT
+};
 /*
 NeoPixel (WS2812B) Section
 -----------------------------------------------------------------------
@@ -83,10 +97,7 @@ constexpr uint8_t ARGB_DOUT_PIN = 21;
 NeoPixelBus<NeoGrbFeature, NeoEsp32Rmt0Ws2812xMethod> argb(LedCount, ARGB_DOUT_PIN);
 
 void argbBootSequence(void* param);
-
-bool switchActivated[MAX_INPUT_SWITCHES];
-
-
+void argbReset();
 //=============================================================================================================
 
 void setup()
@@ -178,6 +189,7 @@ void loop()
 
 bool onButtonEvent(int8_t buttonPin)
 {
+    // TODO : move these section into loop
     int buttonID = -1;
     for(int i = 0 ; i < MAX_INPUT_SWITCHES ; i++)
     {
@@ -195,8 +207,10 @@ bool onButtonEvent(int8_t buttonPin)
     Serial.print("buttonID : ");
     Serial.println(buttonID);
     #endif
-    //reset Pressed Button
+    //reset Pressed Button // TODO : replace this section
     //buttonPressedFlag = false; // NOTE : I think I should place this one another place :/
+
+    //use buttonID below here // TODO : remove this sentense
 
     //software debounce
     unsigned long pressedTime = millis();
@@ -209,6 +223,10 @@ bool onButtonEvent(int8_t buttonPin)
     Serial.println(buttonID);
     #endif
 
+    switch(buttonID)
+    {
+
+    }
     soundEngine->enqueSound(&ButtonEffect_1);//TODO : modify argument to buttonify soundID
 
     //TODO : WS2812B code below here
@@ -230,6 +248,7 @@ void argbBootSequence(void* param)
     #ifdef _DEBUG_NOW
     Serial.println("ARGB Boot Sequence");
     #endif
+    argbReset();
     for(int i = 0 ; i < LedCount ; i++)
     {
         argb.SetPixelColor(i, RgbColor(254, 0, 0));
@@ -252,6 +271,13 @@ void argbBootSequence(void* param)
     Serial.println("ARGB Boot Sequence finished");
     #endif
     vTaskDelete(NULL);
+}
+
+void argbReset()
+{
+    const RgbColor turnOFF(0, 0, 0);
+    argb.ClearTo(turnOFF);
+    argb.Show();
 }
 
 void serialListner()
