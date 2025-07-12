@@ -67,6 +67,7 @@ volatile int pressedSwitchPin = -1;
 
 bool onButtonEvent(int8_t buttinID);
 void isr_Button(void* pin);
+ButtonID getButtonID(int8_t buttonPin);
 
 #define _BUTTON_BROKEN_
 
@@ -84,6 +85,10 @@ enum ButtonID
     Button_DEL,
     Button_ENT
 };
+
+//Serial Protocol Control Bytes Below Here
+constexpr byte ProtocolCMDNewLine = 0b01000000;
+constexpr byte ProtocolCMDErase = 0b10000000;
 /*
 NeoPixel (WS2812B) Section
 -----------------------------------------------------------------------
@@ -189,49 +194,62 @@ void loop()
 
 bool onButtonEvent(int8_t buttonPin)
 {
-    // TODO : move these section into loop
-    int buttonID = -1;
-    for(int i = 0 ; i < MAX_INPUT_SWITCHES ; i++)
-    {
-        if(buttonPin == InputSwitchPin[i])
-        {
-            buttonID = i;
-            break;
-        }
-    }
-
-    if(buttonID == -1) {return false;}
+    ButtonID buttonID = getButtonID(buttonPin);
+    
+    if(buttonID == None) {return false;}
 
     #ifdef _DEBUG_
     Serial.println("ButtonEvent");
     Serial.print("buttonID : ");
-    Serial.println(buttonID);
+    Serial.println(static_cast<int>(buttonID));
     #endif
-    //reset Pressed Button // TODO : replace this section
-    //buttonPressedFlag = false; // NOTE : I think I should place this one another place :/
-
-    //use buttonID below here // TODO : remove this sentense
 
     //software debounce
     unsigned long pressedTime = millis();
-    if(pressedTime < (previousPressedTime[buttonID] + DEBOUNCE_TIME_MS)) {return true;}
-    previousPressedTime[buttonID] = pressedTime;
+    int buttonIndex = static_cast<int>(buttonID) - 1;
+    if(pressedTime < (previousPressedTime[buttonIndex] + DEBOUNCE_TIME_MS)) {return true;}
+    previousPressedTime[buttonIndex] = pressedTime;
     
     #ifdef _DEBUG_
     Serial.println("after debounce code");
     Serial.print("buttonID : ");
-    Serial.println(buttonID);
+    Serial.println(static_cast<int>(buttonID));
     #endif
 
     switch(buttonID)
     {
-
+        case None:
+            return false;
+        case Button_1:
+            soundEngine->enqueSound(&ButtonEffect_1);//TODO : modify argument to buttonify soundID
+            switchActivated[buttonID] = !switchActivated[buttonID];
+            switchActivated[buttonID] ? 
+            argb.SetPixelColor(buttonID, RgbColor(0, 254, 0)) :
+            argb.SetPixelColor(buttonID, RgbColor(0, 0, 0));
+            argb.Show();
+            return true;
+        case Button_2:
+            return true;
+        case Button_3:
+            break;
+        case Button_4:
+            break;
+        case Button_5:
+            break;
+        case Button_6:
+            break;
+        case Button_DEL:
+            break;
+        case Button_ENT:
+            break;
+        default:
+            return false;
     }
-    soundEngine->enqueSound(&ButtonEffect_1);//TODO : modify argument to buttonify soundID
+    
 
     //TODO : WS2812B code below here
 
-    return true;
+    return false;
 }
 
 void IRAM_ATTR isr_Button(void* pin)
@@ -278,6 +296,20 @@ void argbReset()
     const RgbColor turnOFF(0, 0, 0);
     argb.ClearTo(turnOFF);
     argb.Show();
+}
+
+
+
+ButtonID getButtonID(int8_t buttonPin)
+{
+    for(int i = 0 ; i < MAX_INPUT_SWITCHES ; i++)
+    {
+        if(buttonPin == InputSwitchPin[i])
+        {
+            return static_cast<ButtonID>(i + 1);
+        }
+    }
+    return None;
 }
 
 void serialListner()
